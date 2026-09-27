@@ -228,10 +228,20 @@ export const Header: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
+                    openModal('linkedinConnect');
+                    setProfileOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-[#38bdf8] hover:bg-[#0a66c2]/10 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <span className="font-bold text-xs bg-[#0a66c2] text-white px-1 rounded">in</span>
+                  <span>LinkedIn /in/neelam-r</span>
+                </button>
+                <button
+                  onClick={() => {
                     openModal('guidelines');
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface hover:bg-surface-container flex items-center gap-2 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm text-primary">policy</span>
                   <span>Event Guidelines</span>
@@ -241,7 +251,7 @@ export const Header: React.FC = () => {
                     openModal('speakerLibrary');
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface hover:bg-surface-container flex items-center gap-2 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm text-secondary">record_voice_over</span>
                   <span>Speaker Library</span>

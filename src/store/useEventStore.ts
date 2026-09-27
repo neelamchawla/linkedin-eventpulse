@@ -8,6 +8,7 @@ import {
   EngagementChampion,
   EventConfig,
   ScheduledQueueItem,
+  LinkedInAccount,
 } from '../types';
 
 interface EventStoreState {
@@ -20,9 +21,18 @@ interface EventStoreState {
   setActiveEventName: (name: string) => void;
 
   // Active Modals
-  activeModal: 'guidelines' | 'exportTelemetry' | 'streamInspector' | 'keynoteSlide' | 'speakerLibrary' | 'apiAccess' | null;
-  openModal: (modal: 'guidelines' | 'exportTelemetry' | 'streamInspector' | 'keynoteSlide' | 'speakerLibrary' | 'apiAccess') => void;
+  activeModal: 'guidelines' | 'exportTelemetry' | 'streamInspector' | 'keynoteSlide' | 'speakerLibrary' | 'apiAccess' | 'linkedinConnect' | null;
+  openModal: (modal: 'guidelines' | 'exportTelemetry' | 'streamInspector' | 'keynoteSlide' | 'speakerLibrary' | 'apiAccess' | 'linkedinConnect') => void;
   closeModal: () => void;
+
+  // LinkedIn Integration
+  linkedInAccount: LinkedInAccount;
+  isPublishingToLinkedIn: boolean;
+  publishedPostUrl: string | null;
+  fetchLinkedInAccount: () => Promise<void>;
+  publishToLinkedIn: () => Promise<{ success: boolean; postUrl?: string; message?: string }>;
+  connectLinkedInWithToken: (token: string, profileUrl?: string) => Promise<boolean>;
+  disconnectLinkedIn: () => Promise<void>;
 
   // Notification Toast
   toast: { message: string; visible: boolean; icon?: string };
@@ -194,6 +204,18 @@ Drop a comment if you're here in Ahmedabad — let's connect and grab a coffee a
 
 #GoogleCloudNext #GenerativeAI #CloudArchitecture #EventPulse #AhmedabadTech`;
 
+const INITIAL_LINKEDIN_ACCOUNT: LinkedInAccount = {
+  connected: true,
+  name: 'Neelam R',
+  headline: 'Sr. DX Engineer @HZTL',
+  profileUrl: 'https://www.linkedin.com/in/neelam-r/',
+  vanityName: 'neelam-r',
+  pictureUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCq9h9zCsLCK_06QN93c0b6FKivAboRnzlmpxWSc3ji07gZ3Ya0D2odD4X2M5gjLf_Ehouo9Vpegsr_JgoLPk7eIyCkYM-a-Ok2sSAUjpTFby2EJVNKHFA8lGtMGKfS6hLIXmYS77R4PiIQOx6HkUwZBa4acQYgv87Dj8BVDEA-VO0Sc0YyNUqvPHSvxOL9McCEHoZnSCOtoBhmYWK6l05fOSy40gxwL88aKQvPYvidcBGUVgaZK5UN',
+  personUrn: 'urn:li:person:neelam-r',
+  connectedAt: new Date().toISOString(),
+  hasOAuthToken: false,
+};
+
 export const useEventStore = create<EventStoreState>((set, get) => ({
   // Navigation & Theme
   currentTab: 'attendee-generator',
@@ -218,6 +240,114 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
   openModal: (modal) => set({ activeModal: modal }),
   closeModal: () => set({ activeModal: null }),
 
+  // LinkedIn Integration
+  linkedInAccount: INITIAL_LINKEDIN_ACCOUNT,
+  isPublishingToLinkedIn: false,
+  publishedPostUrl: null,
+
+  fetchLinkedInAccount: async () => {
+    try {
+      const res = await fetch('/api/linkedin/account');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.account) {
+          set({ linkedInAccount: data.account });
+        }
+      }
+    } catch {}
+  },
+
+  publishToLinkedIn: async () => {
+    const postContent = get().generatedPost;
+    if (!postContent || !postContent.trim()) {
+      get().showToast('Post content is empty!');
+      return { success: false, message: 'Empty post' };
+    }
+
+    set({ isPublishingToLinkedIn: true });
+    get().showToast('🚀 Publishing to LinkedIn (Neelam R)...');
+
+    try {
+      const res = await fetch('/api/linkedin/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postContent }),
+      });
+
+      const data = await res.json();
+      set({ isPublishingToLinkedIn: false });
+
+      if (data.success) {
+        set({ publishedPostUrl: data.postUrl });
+        get().showToast('✓ Post successfully published to LinkedIn profile!');
+
+        const allTags = Array.from(new Set([...get().userHashtags, ...get().eventConfig.hashtags]));
+        const newLivePost: LivePost = {
+          id: `linkedin-pub-${Date.now()}`,
+          author: get().linkedInAccount.name,
+          role: get().linkedInAccount.headline || 'Sr. DX Engineer @HZTL',
+          initials: 'NR',
+          timeAgo: 'Just now',
+          content: postContent.slice(0, 180) + '...',
+          status: 'shared',
+          tagsCount: allTags.length,
+          tags: allTags,
+          likes: 1,
+          comments: 0,
+          reposts: 0,
+          isCustom: true,
+        };
+
+        set((state) => ({
+          livePosts: [newLivePost, ...state.livePosts],
+          telemetry: {
+            ...state.telemetry,
+            postsGenerated: state.telemetry.postsGenerated + 1,
+            velocityPulseMsgs: state.telemetry.velocityPulseMsgs + 1,
+          },
+        }));
+
+        return { success: true, postUrl: data.postUrl, message: data.message };
+      } else {
+        get().showToast(`LinkedIn publish issue: ${data.error || 'Failed to publish'}`);
+        return { success: false, message: data.error };
+      }
+    } catch (err: any) {
+      set({ isPublishingToLinkedIn: false });
+      get().showToast(`Publish error: ${err.message || 'Network error'}`);
+      return { success: false, message: err.message };
+    }
+  },
+
+  connectLinkedInWithToken: async (token: string, profileUrl?: string) => {
+    try {
+      const res = await fetch('/api/linkedin/connect-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, profileUrl: profileUrl || 'https://www.linkedin.com/in/neelam-r/' }),
+      });
+      const data = await res.json();
+      if (data.success && data.account) {
+        set({ linkedInAccount: data.account });
+        get().showToast('✓ Connected LinkedIn profile: Neelam R');
+        return true;
+      }
+    } catch (err: any) {
+      get().showToast(`Connection failed: ${err.message}`);
+    }
+    return false;
+  },
+
+  disconnectLinkedIn: async () => {
+    try {
+      await fetch('/api/linkedin/disconnect', { method: 'POST' });
+      set((state) => ({
+        linkedInAccount: { ...state.linkedInAccount, connected: false, hasOAuthToken: false },
+      }));
+      get().showToast('Disconnected LinkedIn profile');
+    } catch {}
+  },
+
   // Toast
   toast: { message: '', visible: false },
   showToast: (message, icon = 'check_circle') => {
@@ -237,7 +367,18 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
   setSelectedDepth: (depth) => set({ selectedDepth: depth }),
   attachments: INITIAL_ATTACHMENTS,
   addAttachment: (item) => set((state) => ({ attachments: [...state.attachments, item] })),
-  removeAttachment: (id) => set((state) => ({ attachments: state.attachments.filter((a) => a.id !== id) })),
+  removeAttachment: (id) =>
+    set((state) => {
+      const target = state.attachments.find((a) => a.id === id);
+      if (target?.url && target.url.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(target.url);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+      return { attachments: state.attachments.filter((a) => a.id !== id) };
+    }),
   previewView: 'desktop',
   setPreviewView: (view) => set({ previewView: view }),
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useEventStore } from '../../store/useEventStore';
 
 export const LinkedInPreview: React.FC = () => {
@@ -20,6 +20,11 @@ export const LinkedInPreview: React.FC = () => {
     lastGeneratedAt,
     selectedTone,
     selectedDepth,
+    openModal,
+    linkedInAccount,
+    publishToLinkedIn,
+    isPublishingToLinkedIn,
+    publishedPostUrl,
   } = useEventStore();
 
   const [regenMenuOpen, setRegenMenuOpen] = useState(false);
@@ -48,15 +53,15 @@ export const LinkedInPreview: React.FC = () => {
     setCommentDrawerOpen(false);
   };
 
-  // Helper to highlight hashtags and mentions in post preview
-  const renderFormattedContent = (content: string) => {
-    const lines = content.split('\n');
+  // Memoize highlighted hashtags and mentions in post preview to eliminate wasteful re-parsing
+  const formattedPostContent = useMemo(() => {
+    const lines = generatedPost.split('\n');
     return lines.map((line, idx) => {
       const words = line.split(/(\s+)/);
       return (
         <span key={idx} className="block min-h-[1.25rem]">
           {words.map((word, wIdx) => {
-            if (word.startsWith('#')) {
+            if (word.startsWith('#') || word.startsWith('@')) {
               return (
                 <span
                   key={wIdx}
@@ -67,34 +72,32 @@ export const LinkedInPreview: React.FC = () => {
                 </span>
               );
             }
-            if (word.startsWith('@')) {
-              return (
-                <span
-                  key={wIdx}
-                  className="text-primary font-medium hover:underline cursor-pointer"
-                >
-                  {word}
-                </span>
-              );
-            }
             return <span key={wIdx}>{word}</span>;
           })}
         </span>
       );
     });
-  };
+  }, [generatedPost, showToast]);
 
   const currentPhoto = attachments[activePhotoIndex] || attachments[0];
 
   return (
     <div className="space-y-4 lg:sticky lg:top-20">
       {/* Top Preview Controls */}
-      <div className="flex items-center justify-between px-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-on-surface">Live LinkedIn Preview</span>
-          <span className="px-2 py-0.5 rounded-full bg-surface-container text-secondary text-[11px] font-mono">
-            High Fidelity
-          </span>
+          <button
+            type="button"
+            onClick={() => openModal('linkedinConnect')}
+            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0a66c2]/15 text-[#38bdf8] hover:bg-[#0a66c2]/25 border border-[#0a66c2]/30 text-[11px] font-mono transition-all cursor-pointer"
+            title="Manage LinkedIn profile connection"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-[#38bdf8]">in</span>
+            <span>/in/neelam-r</span>
+            <span className="material-symbols-outlined text-[13px] text-outline">tune</span>
+          </button>
         </div>
 
         {/* Desktop / Mobile Toggle */}
@@ -216,7 +219,7 @@ export const LinkedInPreview: React.FC = () => {
 
         {/* Post Text Body */}
         <div className="text-sm text-on-surface leading-relaxed space-y-1">
-          {renderFormattedContent(generatedPost)}
+          {formattedPostContent}
         </div>
 
         {/* Post Media Asset */}
@@ -376,6 +379,52 @@ export const LinkedInPreview: React.FC = () => {
 
       {/* Bottom Action Toolbar (Bento Glass Panel) */}
       <div className="relative rounded-2xl bg-surface-container-low/95 backdrop-blur-md p-4 space-y-3 shadow-2xl border border-outline-variant/20">
+        {/* Primary Action: 1-Click Publish to Connected LinkedIn Profile */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <button
+            type="button"
+            onClick={publishToLinkedIn}
+            disabled={isPublishingToLinkedIn}
+            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#0a66c2] via-[#0077b5] to-[#0284c7] hover:from-[#084e96] hover:to-[#0369a1] text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[#0a66c2]/25 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-75"
+          >
+            {isPublishingToLinkedIn ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Publishing to LinkedIn (@neelam-r)...</span>
+              </>
+            ) : (
+              <>
+                <span className="font-bold text-sm bg-white/20 px-1.5 py-0.5 rounded">in</span>
+                <span>Publish to LinkedIn (@neelam-r)</span>
+                <span className="material-symbols-outlined text-sm">send</span>
+              </>
+            )}
+          </button>
+
+          {publishedPostUrl ? (
+            <a
+              href={publishedPostUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-3 px-3 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">visibility</span>
+              <span>View Live Post</span>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openModal('linkedinConnect')}
+              className="py-3 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title="Configure LinkedIn Connection & API Settings"
+            >
+              <span className="material-symbols-outlined text-sm">settings</span>
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+          )}
+        </div>
+
+        {/* Secondary Action Tools Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {/* Copy Button */}
           <button
@@ -459,15 +508,15 @@ export const LinkedInPreview: React.FC = () => {
             <span>Schedule</span>
           </button>
 
-          {/* Open in LinkedIn */}
+          {/* Open in LinkedIn Profile */}
           <a
-            href="https://linkedin.com"
+            href="https://www.linkedin.com/in/neelam-r/"
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-medium flex items-center justify-center gap-1.5 transition-all shadow-sm border border-outline-variant/30"
           >
-            <span className="material-symbols-outlined text-base text-primary">open_in_new</span>
-            <span>LinkedIn</span>
+            <span className="material-symbols-outlined text-base text-[#0a66c2]">person</span>
+            <span>/in/neelam-r</span>
           </a>
         </div>
 

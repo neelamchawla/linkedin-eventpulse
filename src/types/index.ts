@@ -61,3 +61,15 @@ export interface ScheduledQueueItem {
   tags: string[];
   status: 'queued' | 'published';
 }
+
+export interface LinkedInAccount {
+  connected: boolean;
+  name: string;
+  headline?: string;
+  profileUrl: string;
+  vanityName: string;
+  pictureUrl?: string;
+  personUrn?: string;
+  connectedAt?: string;
+  hasOAuthToken?: boolean;
+}

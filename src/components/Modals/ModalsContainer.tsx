@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEventStore } from '../../store/useEventStore';
 
 export const ModalsContainer: React.FC = () => {
@@ -11,10 +11,69 @@ export const ModalsContainer: React.FC = () => {
     setAttendeeNotes,
     attendeeNotes,
     telemetry,
+    linkedInAccount,
+    connectLinkedInWithToken,
+    disconnectLinkedIn,
+    fetchLinkedInAccount,
   } = useEventStore();
 
   const [streamSearch, setStreamSearch] = useState('');
   const [streamFilter, setStreamFilter] = useState<'all' | 'shared' | 'scheduled'>('all');
+  const [tokenInput, setTokenInput] = useState('');
+  const [profileUrlInput, setProfileUrlInput] = useState('https://www.linkedin.com/in/neelam-r/');
+  const [isOpeningOAuth, setIsOpeningOAuth] = useState(false);
+  const [isSubmittingToken, setIsSubmittingToken] = useState(false);
+
+  // Listen for OAuth success message from popup per oauth-integration guidelines
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        fetchLinkedInAccount();
+        showToast('✓ LinkedIn profile connected successfully!');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fetchLinkedInAccount, showToast]);
+
+  const handleStartOAuthPopup = async () => {
+    try {
+      setIsOpeningOAuth(true);
+      const res = await fetch('/api/auth/linkedin/url');
+      const data = await res.json();
+      setIsOpeningOAuth(false);
+
+      if (data.url) {
+        const popup = window.open(
+          data.url,
+          'linkedin_oauth_popup',
+          'width=600,height=720,scrollbars=yes'
+        );
+        if (!popup) {
+          showToast('Please enable popups in your browser to complete LinkedIn authentication.');
+        }
+      }
+    } catch (e: any) {
+      setIsOpeningOAuth(false);
+      showToast(`OAuth popup error: ${e.message}`);
+    }
+  };
+
+  const handleSaveToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenInput.trim()) {
+      showToast('Please enter a LinkedIn Access Token');
+      return;
+    }
+    setIsSubmittingToken(true);
+    await connectLinkedInWithToken(tokenInput.trim(), profileUrlInput.trim());
+    setIsSubmittingToken(false);
+    setTokenInput('');
+  };
 
   if (!activeModal) return null;
 
@@ -488,6 +547,199 @@ export const ModalsContainer: React.FC = () => {
               className="px-4 py-2 rounded-lg bg-primary-container text-white text-xs font-mono font-medium hover:bg-inverse-primary transition-colors cursor-pointer"
             >
               Copy API Key
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 7. LINKEDIN CONNECT & PUBLISHING MODAL */}
+      {activeModal === 'linkedinConnect' && (
+        <div className="relative w-full max-w-xl rounded-2xl bg-surface-container p-6 shadow-2xl border border-outline-variant/30 space-y-5 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center font-bold text-sm shadow">
+                in
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-on-surface">LinkedIn Profile & Direct Publishing</h2>
+                <p className="text-[11px] text-on-surface-variant font-mono">Publish posts directly to your LinkedIn feed</p>
+              </div>
+            </div>
+            <button
+              onClick={closeModal}
+              className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+
+          {/* Active Profile Status Card */}
+          <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src={linkedInAccount.pictureUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCq9h9zCsLCK_06QN93c0b6FKivAboRnzlmpxWSc3ji07gZ3Ya0D2odD4X2M5gjLf_Ehouo9Vpegsr_JgoLPk7eIyCkYM-a-Ok2sSAUjpTFby2EJVNKHFA8lGtMGKfS6hLIXmYS77R4PiIQOx6HkUwZBa4acQYgv87Dj8BVDEA-VO0Sc0YyNUqvPHSvxOL9McCEHoZnSCOtoBhmYWK6l05fOSy40gxwL88aKQvPYvidcBGUVgaZK5UN'}
+                    alt="LinkedIn Profile"
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-[#0a66c2]/40"
+                  />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-surface-container-low" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-on-surface">{linkedInAccount.name}</span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      {linkedInAccount.connected ? 'Active Sync' : 'Disconnected'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">{linkedInAccount.headline || 'Sr. DX Engineer @HZTL'}</p>
+                  <a
+                    href={linkedInAccount.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[#38bdf8] hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    <span>{linkedInAccount.profileUrl}</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                </div>
+              </div>
+
+              {linkedInAccount.connected && (
+                <button
+                  type="button"
+                  onClick={() => disconnectLinkedIn()}
+                  className="px-2.5 py-1 rounded-lg text-[11px] text-outline hover:text-red-400 hover:bg-surface-container border border-outline-variant/30 transition-colors cursor-pointer"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-surface-container text-xs text-on-surface-variant flex items-center justify-between gap-2 border border-outline-variant/20">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-400 text-sm">verified</span>
+                <span>Ready to publish generated posts directly to your profile.</span>
+              </div>
+              <a
+                href="https://www.linkedin.com/feed/?shareActive=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-primary hover:underline shrink-0"
+              >
+                LinkedIn Feed ↗
+              </a>
+            </div>
+          </div>
+
+          {/* OAuth 2.0 Popup Connection */}
+          <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">lock</span>
+                <span className="text-xs font-semibold text-on-surface">OAuth 2.0 Authentication</span>
+              </div>
+              <span className="font-mono text-[10px] text-outline">Scopes: w_member_social</span>
+            </div>
+
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Connect directly via LinkedIn OAuth popup. The authorization window opens LinkedIn's official login dialogue and synchronizes your access token securely.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleStartOAuthPopup}
+              disabled={isOpeningOAuth}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#0a66c2] hover:bg-[#004182] text-white text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-60"
+            >
+              {isOpeningOAuth ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <span className="font-bold text-sm">in</span>
+              )}
+              <span>{linkedInAccount.connected ? 'Re-authorize with LinkedIn OAuth' : 'Sign in & Connect with LinkedIn'}</span>
+            </button>
+          </div>
+
+          {/* Developer Credentials & Redirect URI Guide */}
+          <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/30 space-y-2 text-xs">
+            <span className="font-mono text-[11px] font-semibold text-secondary block">
+              LinkedIn Developer Portal Setup:
+            </span>
+            <p className="text-[11px] text-outline">
+              If configuring your own LinkedIn Developer App credentials, add these exact Authorized Redirect URLs to your app:
+            </p>
+            <div className="space-y-1 font-mono text-[10px]">
+              <div className="flex items-center justify-between p-1.5 rounded bg-surface-container border border-outline-variant/30">
+                <span className="truncate text-on-surface">https://ais-dev-ou6akd6d7ejn6k6quvbmj3-531341815741.asia-east1.run.app/api/auth/linkedin/callback</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://ais-dev-ou6akd6d7ejn6k6quvbmj3-531341815741.asia-east1.run.app/api/auth/linkedin/callback');
+                    showToast('Copied Dev Callback URL');
+                  }}
+                  className="text-primary hover:underline ml-2 shrink-0 cursor-pointer"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded bg-surface-container border border-outline-variant/30">
+                <span className="truncate text-on-surface">https://ais-pre-ou6akd6d7ejn6k6quvbmj3-531341815741.asia-east1.run.app/api/auth/linkedin/callback</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://ais-pre-ou6akd6d7ejn6k6quvbmj3-531341815741.asia-east1.run.app/api/auth/linkedin/callback');
+                    showToast('Copied Shared Callback URL');
+                  }}
+                  className="text-primary hover:underline ml-2 shrink-0 cursor-pointer"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Direct Token Connection */}
+          <form onSubmit={handleSaveToken} className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/20 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-secondary text-sm">key</span>
+              <span className="text-xs font-semibold text-on-surface">Direct Token Connection (Alternative)</span>
+            </div>
+            <p className="text-[11px] text-outline">
+              Have a LinkedIn Personal Access Token or OAuth token? Paste it below to immediately bind live publishing permissions.
+            </p>
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="AQX... (LinkedIn Bearer Access Token)"
+                className="w-full px-3 py-2 rounded-lg bg-surface-container text-xs text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingToken || !tokenInput.trim()}
+                className="w-full py-2 px-3 rounded-lg bg-secondary-container text-on-secondary-container hover:bg-secondary text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {isSubmittingToken ? (
+                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-sm">save</span>
+                )}
+                <span>Save & Verify Access Token</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Close CTA */}
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-4 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium transition-colors cursor-pointer"
+            >
+              Done
             </button>
           </div>
         </div>
