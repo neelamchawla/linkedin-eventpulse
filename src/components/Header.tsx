@@ -186,7 +186,7 @@ export const Header: React.FC = () => {
                   <div className="p-2 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
                     <p className="text-on-surface font-medium">New attendee post published</p>
                     <p className="text-on-surface-variant text-[11px]">
-                      Sarah Jenkins shared live insights from Mahatma Mandir Hall 2.
+                      Neelam R shared live insights from Mahatma Mandir Hall 2.
                     </p>
                     <span className="text-[10px] font-mono text-outline">12m ago</span>
                   </div>
@@ -204,7 +204,7 @@ export const Header: React.FC = () => {
             >
               <div className="relative flex items-center justify-center">
                 <img
-                  alt="Sarah Jenkins profile"
+                  alt="Neelam R profile"
                   className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/60 hover:ring-secondary transition-all"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuCq9h9zCsLCK_06QN93c0b6FKivAboRnzlmpxWSc3ji07gZ3Ya0D2odD4X2M5gjLf_Ehouo9Vpegsr_JgoLPk7eIyCkYM-a-Ok2sSAUjpTFby2EJVNKHFA8lGtMGKfS6hLIXmYS77R4PiIQOx6HkUwZBa4acQYgv87Dj8BVDEA-VO0Sc0YyNUqvPHSvxOL9McCEHoZnSCOtoBhmYWK6l05fOSy40gxwL88aKQvPYvidcBGUVgaZK5UN"
                 />
@@ -218,9 +218,9 @@ export const Header: React.FC = () => {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl bg-surface-container-high border border-outline-variant/50 p-2 shadow-2xl z-50 space-y-1">
                 <div className="px-3 py-2 border-b border-outline-variant/30">
-                  <p className="font-semibold text-xs text-on-surface">Sarah Jenkins</p>
+                  <p className="font-semibold text-xs text-on-surface">Neelam R</p>
                   <p className="text-[11px] text-on-surface-variant truncate">
-                    Staff AI Solutions Architect
+                    Sr. DX Engineer @HZTL
                   </p>
                   <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-secondary-container/20 text-secondary">
                     VIP Attendee #4829

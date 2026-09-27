@@ -602,11 +602,15 @@ export const InputStudio: React.FC = () => {
         </button>
 
         <div className="flex items-center justify-between px-2 text-xs font-mono text-outline">
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm text-secondary">token</span>
-            2 AI Credits per generation · Instant 1.2s turn
+          <span className="flex items-center gap-1.5 text-secondary">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-on-surface font-medium">Gemini 3.8 Flash</span>
+            <span className="text-outline">Connected</span>
           </span>
-          <span className="text-on-surface-variant">Grounding Model v4.1</span>
+          <span className="text-on-surface-variant flex items-center gap-1">
+            <span className="material-symbols-outlined text-xs text-secondary">auto_awesome</span>
+            Real-time API Engine
+          </span>
         </div>
       </div>
     </div>

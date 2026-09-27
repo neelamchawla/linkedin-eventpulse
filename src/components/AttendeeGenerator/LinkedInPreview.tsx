@@ -153,15 +153,17 @@ export const LinkedInPreview: React.FC = () => {
         {/* Live Synchronization Status Bar */}
         <div className="flex items-center justify-between text-[11px] font-mono border-b border-outline-variant/25 pb-2.5">
           <div className="flex items-center gap-1.5 text-secondary">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-            <span className="capitalize font-medium">Persona: {selectedTone}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-on-surface font-medium">Gemini 3.8 Flash</span>
             <span className="text-outline">•</span>
-            <span className="capitalize text-on-surface-variant">Depth: {selectedDepth}</span>
+            <span className="capitalize font-medium text-secondary">{selectedTone}</span>
+            <span className="text-outline">•</span>
+            <span className="capitalize text-on-surface-variant">{selectedDepth}</span>
           </div>
           <span className="text-outline flex items-center gap-1">
             {lastGeneratedAt ? (
               <>
-                <span className="text-secondary font-medium">✨ Updated just now</span>
+                <span className="text-secondary font-medium">✨ Updated via Gemini</span>
               </>
             ) : (
               <span>Ready for generation</span>
@@ -174,7 +176,7 @@ export const LinkedInPreview: React.FC = () => {
           <div className="flex items-start gap-3">
             <div className="relative shrink-0">
               <img
-                alt="Sarah Jenkins portrait"
+                alt="Neelam R portrait"
                 className="w-12 h-12 rounded-full object-cover"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCq9h9zCsLCK_06QN93c0b6FKivAboRnzlmpxWSc3ji07gZ3Ya0D2odD4X2M5gjLf_Ehouo9Vpegsr_JgoLPk7eIyCkYM-a-Ok2sSAUjpTFby2EJVNKHFA8lGtMGKfS6hLIXmYS77R4PiIQOx6HkUwZBa4acQYgv87Dj8BVDEA-VO0Sc0YyNUqvPHSvxOL9McCEHoZnSCOtoBhmYWK6l05fOSy40gxwL88aKQvPYvidcBGUVgaZK5UN"
               />
@@ -185,12 +187,12 @@ export const LinkedInPreview: React.FC = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-semibold text-on-surface hover:text-primary transition-colors cursor-pointer">
-                  Sarah Jenkins
+                  Neelam R
                 </span>
                 <span className="text-outline text-xs">• 1st</span>
               </div>
               <p className="text-xs text-on-surface-variant line-clamp-1">
-                Staff AI Solutions Architect @ Datamesh | Speaker & Cloud Practitioner
+                Sr. DX Engineer @HZTL
               </p>
               <div className="flex items-center gap-1 text-[11px] font-mono text-outline mt-0.5">
                 <span>Just now</span>
@@ -204,7 +206,7 @@ export const LinkedInPreview: React.FC = () => {
           <div className="flex items-center gap-1 text-outline">
             <button
               type="button"
-              onClick={() => showToast('Post options: Sarah Jenkins · Public view')}
+              onClick={() => showToast('Post options: Neelam R · Public view')}
               className="p-1 hover:bg-surface-container-high rounded-full transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-lg">more_horiz</span>

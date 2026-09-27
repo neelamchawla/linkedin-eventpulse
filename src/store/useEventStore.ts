@@ -115,9 +115,9 @@ const INITIAL_ATTACHMENTS: MediaAttachment[] = [
 const INITIAL_LIVE_POSTS: LivePost[] = [
   {
     id: 'live-1',
-    author: 'Sarah Jenkins',
-    role: 'VP AI Platforms, Datamesh',
-    initials: 'SJ',
+    author: 'Neelam R',
+    role: 'Sr. DX Engineer @HZTL',
+    initials: 'NR',
     timeAgo: '2m ago',
     content: 'Keynote takeaways on agentic loops: the transition from static LLM queries to autonomous tool orchestration is happening faster than predicted. Excited to see how GCP Vertex anchors this...',
     status: 'shared',
@@ -306,10 +306,83 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
 
   lastGeneratedAt: null as number | null,
 
-  generatePost: () => {
+  generatePost: async () => {
     set({ isGenerating: true });
-    const { attendeeNotes, selectedTone, selectedDepth, eventConfig, userHashtags, attachments } = get();
+    const { attendeeNotes, selectedTone, selectedDepth, eventConfig, userHashtags, attachments, activeEventName } = get();
 
+    // 1. Try Gemini API via backend proxy
+    try {
+      const response = await fetch('/api/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventDesignation: eventConfig.designation,
+          eventHashtags: eventConfig.hashtags,
+          userHashtags,
+          attendeeNotes,
+          selectedTone,
+          selectedDepth,
+          personaRole: 'Sr. DX Engineer @HZTL',
+          companyTag: 'Google Cloud',
+          venue: eventConfig.venue,
+          activeEventName,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.post) {
+          const allTags = Array.from(new Set([...userHashtags, ...eventConfig.hashtags]));
+          let finalPost = data.post;
+          
+          if (attachments && attachments.length > 0 && !finalPost.includes('📸')) {
+            const parts = finalPost.split('\n\n');
+            const lastPart = parts[parts.length - 1];
+            if (lastPart.startsWith('#')) {
+              parts.splice(parts.length - 1, 0, '📸 (Photos attached from today\'s keynote & exhibition lounge)');
+              finalPost = parts.join('\n\n');
+            } else {
+              finalPost += '\n\n📸 (Photos attached from today\'s keynote & exhibition lounge)';
+            }
+          }
+
+          const newLiveItem: LivePost = {
+            id: `user-post-${Date.now()}`,
+            author: 'Neelam R',
+            role: 'Sr. DX Engineer @HZTL',
+            initials: 'NR',
+            timeAgo: 'Just now',
+            content: finalPost.slice(0, 180) + '...',
+            status: 'shared',
+            tagsCount: allTags.length,
+            tags: allTags,
+            likes: 1,
+            comments: 0,
+            reposts: 0,
+            isCustom: true,
+          };
+
+          set((state) => ({
+            generatedPost: finalPost,
+            isGenerating: false,
+            lastGeneratedAt: Date.now(),
+            activePhotoIndex: 0,
+            livePosts: [newLiveItem, ...state.livePosts],
+            telemetry: {
+              ...state.telemetry,
+              postsGenerated: state.telemetry.postsGenerated + 1,
+            },
+          }));
+
+          get().showToast(`✨ Real-time post generated with Gemini 3.8 Flash!`);
+          return;
+        }
+      }
+    } catch (apiError) {
+      console.warn('Gemini API fetch error, switching to local synthesis engine:', apiError);
+    }
+
+    // 2. Intelligent local fallback if offline or backend unavailable
     setTimeout(() => {
       const rawNotes = attendeeNotes.trim();
       const lines = rawNotes ? rawNotes.split('\n').map((l) => l.trim()).filter(Boolean) : [];
@@ -353,7 +426,6 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
           coreInsights.slice(0, 3).forEach((insight, idx) => {
             const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣'];
             const bulletEmoji = emojis[idx] || '🔹';
-            // If the insight is short, add context
             if (insight.length < 50 && idx === 0) {
               pointsList.push(`${bulletEmoji} ${insight} — Autonomous agentic loops with grounded reasoning engines are redefining software delivery.`);
             } else if (insight.length < 50 && idx === 1) {
@@ -481,7 +553,7 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
         middleSection += `\n\n🔍 Architecture Deep-Dive: Enterprise teams are transitioning away from monolithic prompt pipelines toward multi-agent topologies with deterministic tool governance and stateful rollbacks.\n\n💡 Pro tip for attendees: Don't miss the hands-on labs at ${eventConfig.venue} for live cluster benchmarks.`;
       }
 
-      // 3. COMBINE HASHTAGS (userHashtags + eventConfig.hashtags)
+      // 3. COMBINE HASHTAGS
       const allTags = Array.from(new Set([...userHashtags, ...eventConfig.hashtags]));
       const tagsLine = allTags.join(' ');
 
@@ -496,9 +568,9 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
       // Update live feed in organizer dashboard
       const newLiveItem: LivePost = {
         id: `user-post-${Date.now()}`,
-        author: 'Sarah Jenkins',
-        role: 'Staff AI Solutions Architect @ Datamesh',
-        initials: 'SJ',
+        author: 'Neelam R',
+        role: 'Sr. DX Engineer @HZTL',
+        initials: 'NR',
         timeAgo: 'Just now',
         content: newPost.slice(0, 180) + '...',
         status: 'shared',
@@ -522,12 +594,43 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
         },
       }));
 
-      get().showToast(`✨ Generated post with ${selectedTone} tone, ${allTags.length} hashtags & session highlights!`);
-    }, 1000);
+      get().showToast(`✨ Generated post with ${selectedTone} tone & session highlights!`);
+    }, 800);
   },
 
-  regenerateWithVariant: (variant) => {
+  regenerateWithVariant: async (variant) => {
+    set({ isGenerating: true });
     const { generatedPost, eventConfig, userHashtags } = get();
+
+    try {
+      const response = await fetch('/api/regenerate-variant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variantType: variant === 'shorter' ? 'concise' : variant === 'executive' ? 'executive' : variant === 'conversational' ? 'question' : 'hook',
+          currentPost: generatedPost,
+          eventDesignation: eventConfig.designation,
+          eventHashtags: eventConfig.hashtags,
+          userHashtags,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.post) {
+          set({
+            generatedPost: data.post,
+            isGenerating: false,
+            lastGeneratedAt: Date.now(),
+          });
+          get().showToast(`✨ Regenerated ${variant} variant with Gemini 3.8 Flash!`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Gemini variant regeneration failed, falling back:', err);
+    }
+
     const allTags = Array.from(new Set([...userHashtags, ...eventConfig.hashtags])).join(' ');
     let updated = generatedPost;
     if (variant === 'shorter') {
@@ -540,7 +643,7 @@ export const useEventStore = create<EventStoreState>((set, get) => ({
     } else if (variant === 'conversational') {
       updated = `So many great conversations at ${eventConfig.designation} today! 👋\n\nLoved catching the keynote insights and trading notes with folks from across the tech community. Are you here in Ahmedabad? Let's meet up at the lounge!\n\n${allTags}`;
     }
-    set({ generatedPost: updated });
+    set({ generatedPost: updated, isGenerating: false, lastGeneratedAt: Date.now() });
     get().showToast(`✨ Generated ${variant} variant of post!`);
   },
 
