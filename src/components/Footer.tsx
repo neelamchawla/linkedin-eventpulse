@@ -35,7 +35,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="font-mono text-outline text-[11px]">
-          © 2025 EventPulse Corp. Vercel / Linear Spec Engine.
+          © {new Date().getFullYear()} EventPulse Corp. Vercel / Linear Spec Engine.
         </div>
       </div>
     </footer>
