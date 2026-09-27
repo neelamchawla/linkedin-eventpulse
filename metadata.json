@@ -1,0 +1,8 @@
+{
+  "name": "EventPulse - AI Event Ghostwriter & Command Center",
+  "description": "Autonomous LinkedIn event post generator and real-time organizer telemetry dashboard for high-velocity summits and tech conferences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
